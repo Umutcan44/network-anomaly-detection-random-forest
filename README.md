@@ -15,30 +15,50 @@ The project has two main stages:
 
 ## Architecture
 
+The repository currently contains two related but separate detection paths:
+
+### Reproducible CICIDS2017 flow-level benchmark
+
 ```text
-CICIDS2017 / training data
-          |
-          v
-Data preprocessing & feature selection
-          |
-          v
-Random Forest training
-          |
-          v
-Serialized model artifact
-          |
-          v
-PyShark live packet capture
-          |
-          v
-Feature extraction
-          |
-          v
-Binary anomaly prediction
-          |
-          v
-Contextual labeling + alert logging
+CICIDS2017 MachineLearningCVE CSV files
+                  |
+                  v
+        Chunked preprocessing
+                  |
+                  v
+      10 flow-level features
+                  |
+                  v
+        BENIGN / ATTACK
+          binary labels
+                  |
+                  v
+      Random Forest training
+                  |
+                  v
+       Offline evaluation
+      metrics + result plots
 ```
+
+### Legacy live packet-level demonstration
+
+```text
+       PyShark live capture
+                  |
+                  v
+ packet length + source port
+                  |
+                  v
+ legacy two-feature RF model
+                  |
+                  v
+    binary anomaly result
+                  |
+                  v
+contextual label + JSONL alert
+```
+
+> The 10-feature CICIDS2017 flow model is not used directly by the live two-feature PyShark detector. Correct live integration requires flow aggregation that reproduces the CICIDS2017 feature semantics.
 
 See `docs/architecture.md` for design notes, `docs/training.md` for the reproducible baseline training contract, and `docs/integrations.md` for the SIEM/XDR integration direction.
 
