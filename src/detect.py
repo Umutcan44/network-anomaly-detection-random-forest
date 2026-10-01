@@ -15,10 +15,13 @@ import joblib
 import numpy as np
 import pyshark
 
+from events import append_jsonl, build_detection_event
+
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_PATH = os.path.join(PROJECT_ROOT, "model", "rf_model.joblib")
 LOG_FILE = os.path.join(PROJECT_ROOT, "alerts_log.txt")
-INTERFACE = "eth0"
+EVENTS_FILE = os.path.join(PROJECT_ROOT, "events.jsonl")
+INTERFACE = os.getenv("NAD_INTERFACE", "eth0")
 
 print("[INFO] Starting real-time network anomaly detector")
 print(f"[INFO] Loading model from: {MODEL_PATH}")
@@ -117,6 +120,18 @@ try:
             )
             print(f"[ALERT] {message}")
             log_event(message)
+
+            protocol = packet.transport_layer or "unknown"
+            packet_length = int(float(packet.length))
+            event = build_detection_event(
+                source_ip=source_ip,
+                source_port=source_port_int,
+                protocol=protocol,
+                packet_length=packet_length,
+                prediction=prediction,
+                contextual_label=label,
+            )
+            append_jsonl(EVENTS_FILE, event)
         else:
             print("[OK] Normal traffic")
 
