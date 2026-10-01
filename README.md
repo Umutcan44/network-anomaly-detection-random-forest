@@ -148,18 +148,58 @@ Current limitations include:
 
 ## Results
 
-The thesis evaluation used CICIDS2017 and Random Forest. Detailed, reproducible metrics and evaluation artifacts will be added under `results/`.
+A reproducible CICIDS2017 binary-classification benchmark was evaluated using a 600,000-flow sample and a stratified 80/20 train/test split (`random_state=42`).
 
-Accuracy alone is not treated as sufficient evidence for IDS quality; future repository updates will document precision, recall, F1-score, ROC-AUC, confusion matrix, and class distribution where reproducible.
+| Metric | Result |
+|---|---:|
+| Accuracy | 97.6450% |
+| Precision | 89.4803% |
+| Recall | 99.7758% |
+| F1 Score | 94.3480% |
+| ROC-AUC | 99.7409% |
+| PR-AUC | 98.3220% |
+
+### Confusion Matrix
+
+| | Predicted BENIGN | Predicted ATTACK |
+|---|---:|---:|
+| Actual BENIGN | 93,587 | 2,773 |
+| Actual ATTACK | 53 | 23,587 |
+
+![CICIDS2017 Confusion Matrix](results/figures/confusion_matrix.png)
+
+### ROC Curve
+
+![CICIDS2017 ROC Curve](results/figures/roc_curve.png)
+
+### Precision-Recall Curve
+
+![CICIDS2017 Precision-Recall Curve](results/figures/precision_recall_curve.png)
+
+### Feature Importance
+
+![Random Forest Feature Importance](results/figures/feature_importance.png)
+
+The most influential features in this benchmark were `average_packet_size`, `destination_port`, `packet_length_variance`, `packet_length_std`, and `max_packet_length`.
+
+### Evaluation Scope
+
+These results are a controlled **CICIDS2017 flow-level benchmark**, not a claim of production IDS performance.
+
+The evaluation uses a random stratified flow-level split. Similar traffic patterns may therefore occur across the training and test subsets, potentially producing more optimistic results than a temporal, day-based, file-based, or external-dataset evaluation.
+
+The model performs binary `BENIGN` vs `ATTACK` classification; it does not predict individual attack families.
+
+The complete machine-readable results are available in `results/cicids2017_metrics.json`.
 
 ## Roadmap
 
 - [x] Publish thesis prototype
 - [x] Separate live detection logic from documentation
 - [x] Add reproducible two-feature baseline training pipeline
-- [ ] Add evaluation metrics and confusion matrix
+- [x] Add evaluation metrics and confusion matrix
 - [ ] Add architecture diagram and screenshots
-- [ ] Add configuration for capture interface and model path
+- [x] Add configuration for capture interface and model path
 - [x] Add core automated tests
 - [ ] Containerize non-capture components
 - [x] Add vendor-neutral SIEM/XDR-style JSONL event output

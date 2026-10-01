@@ -1,0 +1,73 @@
+{
+  "accuracy": 0.97645,
+  "precision": 0.8948027314112291,
+  "recall": 0.9977580372250423,
+  "f1": 0.94348,
+  "roc_auc": 0.9974085998536227,
+  "pr_auc": 0.9832204201589175,
+  "confusion_matrix": [
+    [
+      93587,
+      2773
+    ],
+    [
+      53,
+      23587
+    ]
+  ],
+  "classification_report": {
+    "BENIGN": {
+      "precision": 0.9994340025630073,
+      "recall": 0.971222498962225,
+      "f1-score": 0.9851263157894737,
+      "support": 96360.0
+    },
+    "ATTACK": {
+      "precision": 0.8948027314112291,
+      "recall": 0.9977580372250423,
+      "f1-score": 0.94348,
+      "support": 23640.0
+    },
+    "accuracy": 0.97645,
+    "macro avg": {
+      "precision": 0.9471183669871182,
+      "recall": 0.9844902680936336,
+      "f1-score": 0.9643031578947369,
+      "support": 120000.0
+    },
+    "weighted avg": {
+      "precision": 0.978821642146107,
+      "recall": 0.97645,
+      "f1-score": 0.9769219915789474,
+      "support": 120000.0
+    }
+  },
+  "training_rows": 480000,
+  "test_rows": 120000,
+  "sample_rows": 600000,
+  "features": [
+    "destination_port",
+    "bwd_packet_length_max",
+    "bwd_packet_length_mean",
+    "bwd_packet_length_std",
+    "packet_length_mean",
+    "packet_length_std",
+    "packet_length_variance",
+    "average_packet_size",
+    "avg_bwd_segment_size",
+    "max_packet_length"
+  ],
+  "feature_importance": {
+    "average_packet_size": 0.17001971151545497,
+    "destination_port": 0.16356140467026956,
+    "packet_length_variance": 0.12485048188291828,
+    "packet_length_std": 0.11060452643995812,
+    "max_packet_length": 0.09830601031807622,
+    "bwd_packet_length_std": 0.09293587827220322,
+    "packet_length_mean": 0.08874560413955696,
+    "bwd_packet_length_mean": 0.061047699648281085,
+    "avg_bwd_segment_size": 0.05389721642466631,
+    "bwd_packet_length_max": 0.036031466688615316
+  },
+  "random_state": 42
+}
