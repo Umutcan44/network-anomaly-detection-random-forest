@@ -2,17 +2,21 @@
 """
 Real-time network anomaly detection demo.
 
-The Random Forest model performs binary anomaly detection using two live
-features: packet length and source port. Human-readable attack names are
-heuristic contextual labels for demonstration purposes; they are not
-multiclass Random Forest predictions.
+The bundled legacy Random Forest performs binary anomaly inference with two
+live values: packet length and source port. The serialized model was fitted
+with generic column names (feature1, feature2), so inference preserves those
+names for scikit-learn compatibility.
+
+Human-readable labels are heuristic context only; they are not multiclass
+Random Forest predictions. The historical training provenance of the bundled
+model is not treated as a reproducible evaluation result.
 """
 
 import datetime
 import os
 
 import joblib
-import numpy as np
+import pandas as pd
 import pyshark
 
 from events import append_jsonl, build_detection_event
@@ -36,7 +40,7 @@ def log_event(message: str) -> None:
 
 
 def extract_features(packet):
-    """Return [packet_length, source_port] for TCP/UDP packets."""
+    """Return a one-row DataFrame compatible with the bundled legacy model."""
     try:
         protocol = packet.transport_layer
         if protocol not in ("TCP", "UDP"):
@@ -44,7 +48,15 @@ def extract_features(packet):
 
         packet_length = float(packet.length)
         source_port = float(packet[protocol].srcport)
-        return np.array([[packet_length, source_port]])
+
+        # The legacy artifact was fitted with these generic column names.
+        # Live extraction maps feature1 -> packet length and feature2 -> source
+        # port to preserve the historical demo contract without claiming that
+        # the original training pipeline is reproducible from this repository.
+        return pd.DataFrame(
+            [[packet_length, source_port]],
+            columns=["feature1", "feature2"],
+        )
     except (AttributeError, KeyError, TypeError, ValueError):
         return None
 
