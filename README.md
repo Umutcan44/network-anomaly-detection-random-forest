@@ -40,7 +40,7 @@ Binary anomaly prediction
 Contextual labeling + alert logging
 ```
 
-See `docs/architecture.md` for additional design notes.
+See `docs/architecture.md` for design notes and `docs/training.md` for the reproducible baseline training contract.
 
 ## Key Capabilities
 
@@ -71,7 +71,7 @@ See `docs/architecture.md` for additional design notes.
 ├── docs/                  # Architecture notes and screenshots
 ├── model/                 # Serialized demo model
 ├── results/               # Evaluation notes/results
-├── src/                   # Detection and demo source code
+├── src/                   # Detection, training, schema, and demo source code
 ├── README.md
 ├── requirements.txt
 └── LICENSE
@@ -107,6 +107,26 @@ The network interface is currently configured as `eth0` in the detector and shou
 sudo python src/detect.py
 ```
 
+## Batch Demo
+
+A desktop batch-inference demo is available with:
+
+```bash
+python src/thesis_demo.py
+```
+
+It validates the CSV feature schema before inference. The included sample CSV is intended to demonstrate input shape, not model quality.
+
+## Reproducible Baseline Training
+
+The repository now includes `src/train_model.py` for retraining a two-feature binary Random Forest baseline from a prepared CSV.
+
+```bash
+python src/train_model.py --input path/to/training.csv
+```
+
+See `docs/training.md` for the required schema and an explicit explanation of what is and is not currently reproducible from the original thesis environment.
+
 ## Model and Detection Limitations
 
 This repository is a research/portfolio prototype, not a production IDS.
@@ -129,7 +149,7 @@ Accuracy alone is not treated as sufficient evidence for IDS quality; future rep
 
 - [x] Publish thesis prototype
 - [x] Separate live detection logic from documentation
-- [ ] Add reproducible training pipeline
+- [x] Add reproducible two-feature baseline training pipeline
 - [ ] Add evaluation metrics and confusion matrix
 - [ ] Add architecture diagram and screenshots
 - [ ] Add configuration for capture interface and model path
