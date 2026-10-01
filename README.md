@@ -40,7 +40,7 @@ Binary anomaly prediction
 Contextual labeling + alert logging
 ```
 
-See `docs/architecture.md` for design notes and `docs/training.md` for the reproducible baseline training contract.
+See `docs/architecture.md` for design notes, `docs/training.md` for the reproducible baseline training contract, and `docs/integrations.md` for the SIEM/XDR integration direction.
 
 ## Key Capabilities
 
@@ -101,7 +101,14 @@ The live detector currently extracts two features:
 
 It then runs binary Random Forest inference and records suspicious events.
 
-The network interface is currently configured as `eth0` in the detector and should be changed to match the host system before execution.
+The capture interface defaults to `eth0` and can be configured without editing the source:
+
+```bash
+export NAD_INTERFACE=eth0
+sudo -E python src/detect.py
+```
+
+On an anomaly, the detector writes both a human-readable log and a vendor-neutral structured `events.jsonl` record.
 
 ```bash
 sudo python src/detect.py
@@ -153,9 +160,9 @@ Accuracy alone is not treated as sufficient evidence for IDS quality; future rep
 - [ ] Add evaluation metrics and confusion matrix
 - [ ] Add architecture diagram and screenshots
 - [ ] Add configuration for capture interface and model path
-- [ ] Add automated tests
+- [x] Add core automated tests
 - [ ] Containerize non-capture components
-- [ ] Add SIEM/XDR-style event output
+- [x] Add vendor-neutral SIEM/XDR-style JSONL event output
 - [ ] Explore cloud telemetry and security automation integrations
 
 ## Responsible Use
@@ -167,3 +174,14 @@ Use this project only on networks and systems you own or are explicitly authoriz
 **Umutcan Kargın**
 
 Computer Engineering graduate focused on cybersecurity, detection engineering, security automation, and applied AI.
+
+
+## Tests
+
+Run the core tests from the repository root:
+
+```bash
+python -m unittest discover -s tests
+```
+
+The current tests validate the feature schema and structured detection-event contract.
