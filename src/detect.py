@@ -1,128 +1,109 @@
 #!/usr/bin/env python3
 """
-Real-time IDS demo with heuristic CICIDS-style attack naming.
+Real-time network anomaly detection demo.
 
-- Uses rf_model.joblib (binary model: classes_ = [0, 1])
-- Feature vector: [packet length, source port]
-- Heuristics + CICIDS-like attack labels:
-    * Port Scan (CICIDS: PortScan)
-    * UDP Flood Attempt (CICIDS: DDoS)
-    * High-Rate Traffic / Possible Flood (CICIDS: DoS Hulk)
-    * Generic ML Anomaly (CICIDS: Infiltration)
+The bundled legacy Random Forest performs binary anomaly inference with two
+live values: packet length and source port. The serialized model was fitted
+with generic column names (feature1, feature2), so inference preserves those
+names for scikit-learn compatibility.
+
+Human-readable labels are heuristic context only; they are not multiclass
+Random Forest predictions. The historical training provenance of the bundled
+model is not treated as a reproducible evaluation result.
 """
 
-import pyshark
-import joblib
-import numpy as np
 import datetime
 import os
 
-print("[INFO] Starting real-time IDS (heuristic CICIDS naming)")
+import joblib
+import pandas as pd
+import pyshark
 
-# ---------------------------------------------------------
-# 1) Load binary RF model (rf_model.joblib)
-# ---------------------------------------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "..", "..", "rf_model.joblib")
+from events import append_jsonl, build_detection_event
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODEL_PATH = os.path.join(PROJECT_ROOT, "model", "rf_model.joblib")
+LOG_FILE = os.path.join(PROJECT_ROOT, "alerts_log.txt")
+EVENTS_FILE = os.path.join(PROJECT_ROOT, "events.jsonl")
+INTERFACE = os.getenv("NAD_INTERFACE", "eth0")
+
+print("[INFO] Starting real-time network anomaly detector")
 print(f"[INFO] Loading model from: {MODEL_PATH}")
 model = joblib.load(MODEL_PATH)
 print("[INFO] Model loaded successfully")
 
-# ---------------------------------------------------------
-# 2) Logging
-# ---------------------------------------------------------
-LOG_FILE = os.path.join(BASE_DIR, "alerts_log.txt")
 
-def log_event(msg: str):
-    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(LOG_FILE, "a") as f:
-        f.write(f"{ts} - {msg}\n")
+def log_event(message: str) -> None:
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(LOG_FILE, "a", encoding="utf-8") as log_file:
+        log_file.write(f"{timestamp} - {message}\n")
 
-# ---------------------------------------------------------
-# 3) Feature extraction: length + src_port (2 features)
-# ---------------------------------------------------------
+
 def extract_features(packet):
+    """Return a one-row DataFrame compatible with the bundled legacy model."""
     try:
-        proto = packet.transport_layer
-        if proto not in ("TCP", "UDP"):
+        protocol = packet.transport_layer
+        if protocol not in ("TCP", "UDP"):
             return None
 
-        length = float(packet.length)
-        src_port = float(packet[proto].srcport)
+        packet_length = float(packet.length)
+        source_port = float(packet[protocol].srcport)
 
-        X = np.array([[length, src_port]])
-        return X
-    except Exception:
+        # The legacy artifact was fitted with these generic column names.
+        # Live extraction maps feature1 -> packet length and feature2 -> source
+        # port to preserve the historical demo contract without claiming that
+        # the original training pipeline is reproducible from this repository.
+        return pd.DataFrame(
+            [[packet_length, source_port]],
+            columns=["feature1", "feature2"],
+        )
+    except (AttributeError, KeyError, TypeError, ValueError):
         return None
 
-# ---------------------------------------------------------
-# 4) Attacker info (IP + port)
-# ---------------------------------------------------------
-def get_attacker_info(packet):
-    src_ip = "unknown"
+
+def get_source(packet):
+    source_ip = "unknown"
+    source_port_text = "unknown"
+    source_port_int = None
+
     try:
         if "IP" in packet:
-            src_ip = packet.ip.src
+            source_ip = packet.ip.src
         elif "IPv6" in packet:
-            src_ip = packet.ipv6.src
-    except Exception:
+            source_ip = packet.ipv6.src
+    except (AttributeError, KeyError):
         pass
 
-    src_port_str = "unknown"
-    src_port_int = None
     try:
-        if hasattr(packet, "transport_layer"):
-            src_port_str = packet[packet.transport_layer].srcport
-            src_port_int = int(src_port_str)
-    except Exception:
+        protocol = packet.transport_layer
+        if protocol:
+            source_port_text = packet[protocol].srcport
+            source_port_int = int(source_port_text)
+    except (AttributeError, KeyError, TypeError, ValueError):
         pass
 
-    return src_ip, src_port_str, src_port_int
+    return source_ip, source_port_text, source_port_int
 
-# ---------------------------------------------------------
-# 5) Heuristic attack type + CICIDS-style label
-# ---------------------------------------------------------
-def get_attack_and_cicids_label(packet, src_port_int, pred):
-    """
-    Mevcut binary model + trafik özelliklerine göre:
-      - attack_name: İnsan tarafından okunabilir saldırı adı
-      - cicids_label: CICIDS2017'deki en yakın saldırı etiketi (heuristic)
 
-    Eğer saldırı yoksa (normal trafik) -> (None, None) döner.
-    """
-
-    # 1) TCP SYN → Port Scan (CICIDS: PortScan)
+def contextual_label(packet, source_port_int, prediction):
+    """Return a heuristic demo label, separate from the ML prediction."""
     try:
-        if hasattr(packet, "tcp"):
-            flags = str(packet.tcp.flags)
-            if "0x002" in flags:  # SYN
-                return "Port Scan", "PortScan"
-    except Exception:
+        if hasattr(packet, "tcp") and "0x002" in str(packet.tcp.flags):
+            return "Possible TCP SYN / scan activity"
+    except AttributeError:
         pass
 
-    # 2) UDP trafiği → UDP Flood Attempt (CICIDS: DDoS)
-    try:
-        if hasattr(packet, "udp"):
-            return "UDP Flood Attempt", "DDoS"
-    except Exception:
-        pass
+    if hasattr(packet, "udp") and prediction == 1:
+        return "Anomalous UDP traffic"
 
-    # 3) Yüksek kaynak port → High-Rate Traffic (CICIDS: DoS Hulk)
-    if src_port_int is not None and src_port_int > 1024:
-        return "High-Rate Traffic / Possible Flood", "DoS Hulk"
+    if source_port_int is not None and source_port_int > 1024 and prediction == 1:
+        return "Anomalous high-source-port traffic"
 
-    # 4) Model anomali (pred == 1) → Generic ML Anomaly (CICIDS: Infiltration)
-    if pred == 1:
-        return "Generic ML Anomaly", "Infiltration"
+    if prediction == 1:
+        return "ML anomaly"
 
-    # Hiçbiri değilse normal trafik
-    return None, None
+    return None
 
-# ---------------------------------------------------------
-# 6) Live capture loop
-# ---------------------------------------------------------
-INTERFACE = "eth0"
 
 print(f"[INFO] Listening on interface: {INTERFACE}")
 capture = pyshark.LiveCapture(interface=INTERFACE)
@@ -130,31 +111,41 @@ print("[INFO] Sniffing started. Press Ctrl+C to stop.\n")
 
 try:
     for packet in capture.sniff_continuously():
-        X = extract_features(packet)
-        if X is None:
+        features = extract_features(packet)
+        if features is None:
             continue
 
-        src_ip, src_port_str, src_port_int = get_attacker_info(packet)
+        source_ip, source_port_text, source_port_int = get_source(packet)
 
         try:
-            pred = model.predict(X)[0]  # 0 = normal, 1 = anomaly (demo)
-        except Exception as e:
-            print(f"[ERROR] Prediction failed: {e}")
+            prediction = model.predict(features)[0]
+        except (ValueError, TypeError) as error:
+            print(f"[ERROR] Prediction failed: {error}")
             continue
 
-        attack_name, cicids_label = get_attack_and_cicids_label(
-            packet, src_port_int, pred
-        )
+        label = contextual_label(packet, source_port_int, prediction)
 
-        if attack_name is not None:
-            msg = (
-                f"{attack_name} detected from {src_ip}:{src_port_str} "
-                f"[CICIDS-like: {cicids_label}, pred={pred}]"
+        if prediction == 1:
+            message = (
+                f"{label or 'ML anomaly'} detected from "
+                f"{source_ip}:{source_port_text} [prediction={prediction}]"
             )
-            print(f"🔴 {msg}")
-            log_event(msg)
+            print(f"[ALERT] {message}")
+            log_event(message)
+
+            protocol = packet.transport_layer or "unknown"
+            packet_length = int(float(packet.length))
+            event = build_detection_event(
+                source_ip=source_ip,
+                source_port=source_port_int,
+                protocol=protocol,
+                packet_length=packet_length,
+                prediction=prediction,
+                contextual_label=label,
+            )
+            append_jsonl(EVENTS_FILE, event)
         else:
-            print("🟢 Normal Traffic")
+            print("[OK] Normal traffic")
 
 except KeyboardInterrupt:
     print("\n[INFO] Stopped by user.")

@@ -1,0 +1,1 @@
+joblib==1.6.0\nnumpy==2.5.3\npandas==3.0.6\npyshark==0.6\nscikit-learn==1.9.0\nmatplotlib==3.11.2
