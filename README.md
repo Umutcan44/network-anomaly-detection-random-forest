@@ -17,6 +17,31 @@ The project has two main stages:
 
 The repository currently contains two related but separate detection paths:
 
+### Architecture diagram
+
+```mermaid
+flowchart LR
+  subgraph Offline[Reproducible CICIDS2017 flow-level benchmark]
+    A[CICIDS2017 CSV files] --> B[Chunked preprocessing]
+    B --> C[10 flow-level features]
+    C --> D[Random Forest training]
+    D --> E[Offline evaluation]
+    E --> F[Metrics and plots]
+  end
+
+  subgraph Live[Legacy live packet-level demonstration]
+    G[PyShark live capture] --> H[Packet length + source port]
+    H --> I[Legacy 2-feature RF]
+    I --> J[Binary anomaly result]
+    J --> K[Contextual label + JSONL event]
+  end
+
+  L[Future flow aggregation matching CICIDS semantics] -.-> C
+  L -.-> M[SIEM / XDR integration]
+```
+
+The dashed path represents future engineering work, not a currently implemented SIEM/XDR integration.
+
 ### Reproducible CICIDS2017 flow-level benchmark
 
 ```text
@@ -134,6 +159,14 @@ On an anomaly, the detector writes both a human-readable log and a vendor-neutra
 sudo python src/detect.py
 ```
 
+## Live Detection Demo
+
+The following screenshot shows the legacy two-feature packet-level detector running on Kali Linux, successfully loading the Random Forest model, listening on `eth0`, and processing live traffic through the normal inference path.
+
+![Live packet-level detection demo on Kali Linux](docs/screenshots/live-detection.png)
+
+> This screenshot validates the live capture and normal inference path. It is not evidence of attack-detection performance; benchmark performance is reported separately using CICIDS2017 below.
+
 ## Batch Demo
 
 A desktop batch-inference demo is available with:
@@ -218,7 +251,7 @@ The complete machine-readable results are available in `results/cicids2017_metri
 - [x] Separate live detection logic from documentation
 - [x] Add reproducible two-feature baseline training pipeline
 - [x] Add evaluation metrics and confusion matrix
-- [ ] Add architecture diagram and screenshots
+- [x] Add architecture diagram and screenshots
 - [x] Add configuration for capture interface and model path
 - [x] Add core automated tests
 - [ ] Containerize non-capture components
